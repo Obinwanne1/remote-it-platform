@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <nav class="sidebar-nav">
+            <a href="{{ url_for('engineer.dashboard') }}" class="nav-item active">
+                <span class="nav-icon">&#9776;</span> All Tickets
+            </a>
+            <a href="{{ url_for('engineer.clients') }}" class="nav-item">
+                <span class="nav-icon">&#128188;</span> Clients
+            </a>
+            <a href="{{ url_for('engineer.new_client') }}" class="nav-item">
+                <span class="nav-icon">&#43;</span> Add Client
+            </a>
+            <a href="{{ url_for('kb.kb_list') }}" class="nav-item">
+                <span class="nav-icon">&#128218;</span> Knowledge Base
+            </a>
+        </nav>
+        <div class="sidebar-clients">
+            <div class="sidebar-section-title">Clients</div>
+            {% for c in clients %}
+            <a href="{{ url_for('engineer.client_detail', client_id=c.id) }}" class="sidebar-client-link">
+                <span class="client-dot {% if c.open_ticket_count > 0 %}dot-active{% endif %}"></span>
+                {{ c.name }}
+                {% if c.open_ticket_count > 0 %}
+                <span class="badge badge-sm">{{ c.open_ticket_count }}</span>
+                {% endif %}
+            </a>
+            {% endfor %}
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main-content">
+        <!-- Stats bar -->
+        <div class="stats-bar">
+            <div class="stat-card">
+                <div class="stat-number">{{ open_count }}</div>
+                <div class="stat-label">Open Tickets</div>
+            </div>
+            <div class="stat-card stat-alert">
+                <div class="stat-number">{{ p1_count }}</div>
+                <div class="stat-label">P1 Critical</div>
+            </div>
+            <div class="stat-card {% if breach_count > 0 %}stat-danger{% endif %}">
+                <div class="stat-number">{{ breach_count }}</div>
+                <div class="stat-label">SLA Breached</div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filter-bar">
+            <form method="GET" class="filter-form" id="filterForm">
+                <select name="status" onchange="document.getElementById('filterForm').submit()">
+                    <option value="">All Statuses</option>
+                    {% for val, label in statuses %}
+                    <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <select name="priority" onchange="document.getElementById('filterForm').submit()">
+                    <option value="">All Priorities</option>
+                    {% for p in priorities %}
+                    <option value="{{ p }}" {% if priority_filter == p %}selected{% endif %}>{{ p }}</option>
+                    {% endfor %}
+                </select>
+                <select name="client_id" onchange="document.getElementById('filterForm').submit()">
+                    <option value="">All Clients</option>
+                    {% for c in clients %}
+                    <option value="{{ c.id }}" {% if client_filter == c.id|string %}selected{% endif %}>{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+                {% if status_filter or priority_filter or client_filter %}
+                <a href="{{ url_for('engineer.dashboard') }}" class="btn btn-outline btn-sm">Clear</a>
+                {% endif %}
+            </form>
+        </div>
+
+        <!-- Ticket table -->
+        <div class="card">
+            {% if tickets %}
+            <table class="ticket-table">
+                <thead>
+                    <tr>
+                        <th>Ticket</th>
+                        <th>Client</th>
+                        <th>Title</th>
+                        <th>Priority</th>
+                        <th>Category</th>
+                        <th>Status</th>
+                        <th>SLA</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ticket in tickets %}
+                    <tr class="ticket-row {% if ticket.sla_status == 'breached' %}row-breached{% endif %}"
+                        onclick="window.location='{{ url_for('engineer.ticket_detail', ticket_id=ticket.id) }}'">
+                        <td><span class="ticket-num">{{ ticket.ticket_number }}</span></td>
+                        <td>{{ ticket.client.name }}</td>
+                        <td class="ticket-title">{{ ticket.title }}</td>
+                        <td>
+                            <span class="priority-badge" style="background: {{ ticket.priority_color }}">
+                                {{ ticket.priority }}
+                            </span>
+                        </td>
+                        <td>{{ ticket.category }}</td>
+                        <td><span class="status-badge status-{{ ticket.status }}">{{ ticket.status_label }}</span></td>
+                        <td>
+                            {% if ticket.status not in ('resolved', 'closed') %}
+                            <span class="sla-{{ ticket.sla_status }}">{{ ticket.sla_remaining_label }}</span>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted">{{ ticket.created_at.strftime('%d %b %H:%M') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <p>No tickets found.</p>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+</div>
+{% endblock %}

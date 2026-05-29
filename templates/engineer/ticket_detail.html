@@ -1,0 +1,238 @@
+{% extends 'base.html' %}
+{% block title %}{{ ticket.ticket_number }}{% endblock %}
+
+{% block content %}
+<div class="layout">
+    <aside class="sidebar">
+        <nav class="sidebar-nav">
+            <a href="{{ url_for('engineer.dashboard') }}" class="nav-item">&#8592; Dashboard</a>
+            <a href="{{ url_for('engineer.client_detail', client_id=ticket.client_id) }}" class="nav-item">&#128188; {{ ticket.client.name }}</a>
+            <a href="{{ url_for('kb.kb_list') }}" class="nav-item">&#128218; Knowledge Base</a>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <div class="ticket-detail-header">
+            <div>
+                <span class="ticket-num-lg">{{ ticket.ticket_number }}</span>
+                <h2>{{ ticket.title }}</h2>
+                <div class="ticket-meta">
+                    <span class="priority-badge" style="background: {{ ticket.priority_color }}">{{ ticket.priority }}</span>
+                    <span class="status-badge status-{{ ticket.status }}">{{ ticket.status_label }}</span>
+                    <span class="text-muted">{{ ticket.category }}</span>
+                    <span class="text-muted">by {{ ticket.created_by.name }}</span>
+                    <span class="text-muted">{{ ticket.created_at.strftime('%d %b %Y %H:%M') }}</span>
+                    {% if ticket.total_session_minutes %}
+                    <span class="time-logged-badge">&#9203; {{ ticket.total_time_label }} logged</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% if ticket.status not in ('resolved', 'closed') %}
+            <div class="sla-badge sla-{{ ticket.sla_status }}">
+                SLA: {{ ticket.sla_remaining_label }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="ticket-layout">
+            <!-- Left: description + comments -->
+            <div class="ticket-main">
+                <div class="card mb-4">
+                    <h3 class="card-title">Description</h3>
+                    <div class="ticket-description">{{ ticket.description }}</div>
+                </div>
+
+                <!-- Comments -->
+                <div class="card" id="comments">
+                    <h3 class="card-title">Thread</h3>
+                    {% for comment in ticket.comments %}
+                    <div class="comment {% if comment.is_internal %}comment-internal{% endif %}">
+                        <div class="comment-header">
+                            <strong>{{ comment.author.name }}</strong>
+                            {% if comment.is_internal %}
+                            <span class="internal-badge">Internal Note</span>
+                            {% endif %}
+                            <span class="text-muted">{{ comment.created_at.strftime('%d %b %H:%M') }}</span>
+                        </div>
+                        <div class="comment-body">{{ comment.body }}</div>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No comments yet.</p>
+                    {% endfor %}
+
+                    <form method="POST" action="{{ url_for('engineer.add_comment', ticket_id=ticket.id) }}" class="comment-form mt-4">
+                        <textarea name="body" rows="4" placeholder="Write a reply or internal note..." required></textarea>
+                        <div class="comment-form-footer">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="is_internal">
+                                Internal note (hidden from client)
+                            </label>
+                            <button type="submit" class="btn btn-primary">Post Reply</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Sessions log -->
+                {% if ticket.sessions %}
+                <div class="card mt-4" id="sessions">
+                    <h3 class="card-title">Remote Sessions</h3>
+                    <table class="ticket-table">
+                        <thead>
+                            <tr><th>Started</th><th>Ended</th><th>Duration</th><th>Notes</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for s in ticket.sessions | sort(attribute='started_at') %}
+                            <tr>
+                                <td>{{ s.started_at.strftime('%d %b %H:%M') }}</td>
+                                <td>{% if s.ended_at %}{{ s.ended_at.strftime('%d %b %H:%M') }}{% else %}<span class="session-active-badge">Active</span>{% endif %}</td>
+                                <td>{{ s.duration_label }}</td>
+                                <td class="text-muted">{{ s.notes or '—' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Right: controls -->
+            <div class="ticket-sidebar">
+                <div class="card">
+                    <h3 class="card-title">Update Ticket</h3>
+                    <form method="POST" action="{{ url_for('engineer.update_ticket', ticket_id=ticket.id) }}">
+                        <div class="form-group">
+                            <label>Status</label>
+                            <select name="status">
+                                {% for val, label in statuses %}
+                                <option value="{{ val }}" {% if ticket.status == val %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Priority</label>
+                            <select name="priority">
+                                {% for p in priorities %}
+                                <option value="{{ p }}" {% if ticket.priority == p %}selected{% endif %}>{{ p }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Category</label>
+                            <select name="category">
+                                {% for cat in categories %}
+                                <option value="{{ cat }}" {% if ticket.category == cat %}selected{% endif %}>{{ cat }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-full">Save Changes</button>
+                    </form>
+                </div>
+
+                <!-- Remote session panel -->
+                <div class="card mt-4" id="sessions">
+                    <h3 class="card-title">Remote Session</h3>
+                    {% set active = ticket.active_session %}
+                    {% if active %}
+                    <!-- Active session -->
+                    <div class="session-active-panel">
+                        <div class="session-timer-label">Session in progress</div>
+                        <div class="session-timer"
+                             id="sessionTimer"
+                             data-started="{{ active.started_at.timestamp() }}">
+                            00:00:00
+                        </div>
+                        {% if ticket.client.anydesk_id %}
+                        <a href="anydesk:{{ ticket.client.anydesk_id }}" class="btn btn-green btn-sm btn-full mb-2">
+                            &#128279; Re-open AnyDesk
+                        </a>
+                        {% endif %}
+                        <form method="POST" action="{{ url_for('engineer.end_session', session_id=active.id) }}">
+                            <div class="form-group">
+                                <label>Session Notes</label>
+                                <textarea name="notes" rows="2" placeholder="What was done..."></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-outline btn-full">End Session</button>
+                        </form>
+                    </div>
+                    {% else %}
+                    <!-- No active session -->
+                    <p class="text-muted" style="margin-bottom:10px">
+                        {% if ticket.sessions %}
+                        Total logged: <strong>{{ ticket.total_time_label }}</strong>
+                        {% else %}
+                        No sessions yet.
+                        {% endif %}
+                    </p>
+                    {% if ticket.client.anydesk_id %}
+                    <div class="anydesk-section mb-2">
+                        <span class="anydesk-id">{{ ticket.client.anydesk_id }}</span>
+                        <a href="anydesk:{{ ticket.client.anydesk_id }}" class="btn btn-green btn-sm btn-full mt-2">
+                            &#128279; Connect via AnyDesk
+                        </a>
+                    </div>
+                    {% endif %}
+                    <form method="POST" action="{{ url_for('engineer.start_session', ticket_id=ticket.id) }}">
+                        <button type="submit" class="btn btn-primary btn-full">&#9654; Start Session</button>
+                    </form>
+                    {% endif %}
+                </div>
+
+                <div class="card mt-4">
+                    <h3 class="card-title">Client</h3>
+                    <p><strong>{{ ticket.client.name }}</strong></p>
+                    {% if not ticket.client.anydesk_id %}
+                    <p class="text-muted">No AnyDesk ID set.</p>
+                    <a href="{{ url_for('engineer.edit_client', client_id=ticket.client_id) }}" class="btn btn-outline btn-sm">Add AnyDesk ID</a>
+                    {% endif %}
+                </div>
+
+                <div class="card mt-4">
+                    <h3 class="card-title">Timeline</h3>
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <span class="text-muted">Created</span>
+                            <span>{{ ticket.created_at.strftime('%d %b %Y %H:%M') }}</span>
+                        </div>
+                        <div class="timeline-item">
+                            <span class="text-muted">Updated</span>
+                            <span>{{ ticket.updated_at.strftime('%d %b %Y %H:%M') }}</span>
+                        </div>
+                        {% if ticket.resolved_at %}
+                        <div class="timeline-item">
+                            <span class="text-muted">Resolved</span>
+                            <span>{{ ticket.resolved_at.strftime('%d %b %Y %H:%M') }}</span>
+                        </div>
+                        {% endif %}
+                        {% if ticket.sla_deadline %}
+                        <div class="timeline-item">
+                            <span class="text-muted">SLA Due</span>
+                            <span class="sla-{{ ticket.sla_status }}">{{ ticket.sla_deadline.strftime('%d %b %Y %H:%M') }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Live session timer
+(function() {
+    const el = document.getElementById('sessionTimer');
+    if (!el) return;
+    const started = parseFloat(el.dataset.started) * 1000;
+    function update() {
+        const elapsed = Math.floor((Date.now() - started) / 1000);
+        const h = Math.floor(elapsed / 3600);
+        const m = Math.floor((elapsed % 3600) / 60);
+        const s = elapsed % 60;
+        el.textContent = [h, m, s].map(n => String(n).padStart(2, '0')).join(':');
+    }
+    update();
+    setInterval(update, 1000);
+})();
+</script>
+{% endblock %}

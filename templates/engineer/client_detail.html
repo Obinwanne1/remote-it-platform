@@ -1,0 +1,437 @@
+{% extends 'base.html' %}
+{% block title %}{{ client.name }}{% endblock %}
+
+{% block content %}
+<div class="layout">
+    <aside class="sidebar">
+        <nav class="sidebar-nav">
+            <a href="{{ url_for('engineer.dashboard') }}" class="nav-item">&#8592; Dashboard</a>
+            <a href="{{ url_for('engineer.clients') }}" class="nav-item">&#128188; All Clients</a>
+        </nav>
+    </aside>
+    <main class="main-content">
+        <!-- Page header -->
+        <div class="page-header">
+            <div>
+                <h2>{{ client.name }}</h2>
+                <div class="ticket-meta">
+                    <span class="text-muted">{{ client.email }}</span>
+                    {% if client.phone %}<span class="text-muted">{{ client.phone }}</span>{% endif %}
+                </div>
+            </div>
+            <div class="header-actions">
+                {% if client.anydesk_id %}
+                <a href="anydesk:{{ client.anydesk_id }}" class="btn btn-green">&#128279; AnyDesk Connect</a>
+                {% endif %}
+                <a href="{{ url_for('engineer.report_form', client_id=client.id) }}" class="btn btn-outline">&#128196; Report</a>
+                <a href="{{ url_for('engineer.edit_client', client_id=client.id) }}" class="btn btn-outline">Edit</a>
+                <a href="{{ url_for('engineer.new_client_user', client_id=client.id) }}" class="btn btn-primary">+ Add User</a>
+            </div>
+        </div>
+
+        {% if client.anydesk_id %}
+        <div class="info-banner">
+            AnyDesk ID: <strong>{{ client.anydesk_id }}</strong>
+        </div>
+        {% endif %}
+
+        <!-- Health stats bar -->
+        <div class="stats-bar">
+            <div class="stat-card {% if open_count > 0 %}stat-alert{% endif %}">
+                <div class="stat-number">{{ open_count }}</div>
+                <div class="stat-label">Open Tickets</div>
+            </div>
+            <div class="stat-card {% if sla_pct < 80 %}stat-danger{% elif sla_pct < 95 %}stat-alert{% endif %}">
+                <div class="stat-number">{{ sla_pct }}%</div>
+                <div class="stat-label">SLA Compliance</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ month_time_label }}</div>
+                <div class="stat-label">Time This Month</div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tab-bar">
+            <a href="{{ url_for('engineer.client_detail', client_id=client.id, tab='overview') }}"
+               class="tab {% if active_tab == 'overview' %}tab-active{% endif %}">Overview</a>
+            <a href="{{ url_for('engineer.client_detail', client_id=client.id, tab='inventory') }}"
+               class="tab {% if active_tab == 'inventory' %}tab-active{% endif %}">
+                &#128187; Inventory
+                {% if devices %}<span class="badge badge-sm">{{ devices|length }}</span>{% endif %}
+            </a>
+            <a href="{{ url_for('engineer.client_detail', client_id=client.id, tab='vault') }}"
+               class="tab {% if active_tab == 'vault' %}tab-active{% endif %}">
+                &#128274; Vault
+                {% if credentials %}<span class="badge badge-sm">{{ credentials|length }}</span>{% endif %}
+            </a>
+        </div>
+
+        <!-- Overview tab -->
+        {% if active_tab == 'overview' %}
+
+        {% if client.notes %}
+        <div class="card mb-4">
+            <h3 class="card-title">Notes</h3>
+            <p>{{ client.notes }}</p>
+        </div>
+        {% endif %}
+
+        <div class="card mb-4">
+            <div class="card-header-row">
+                <h3 class="card-title">Users ({{ client.users|length }})</h3>
+                <a href="{{ url_for('engineer.new_client_user', client_id=client.id) }}" class="btn btn-outline btn-sm">+ Add User</a>
+            </div>
+            {% if client.users %}
+            <table class="ticket-table">
+                <thead>
+                    <tr><th>Name</th><th>Email</th><th>Role</th><th>Since</th></tr>
+                </thead>
+                <tbody>
+                    {% for user in client.users %}
+                    <tr>
+                        <td>{{ user.name }}</td>
+                        <td>{{ user.email }}</td>
+                        <td><span class="role-badge role-{{ user.role }}">{{ user.role.replace('_', ' ').title() }}</span></td>
+                        <td class="text-muted">{{ user.created_at.strftime('%d %b %Y') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-muted">No users yet.</p>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <h3 class="card-title">Tickets ({{ tickets|length }})</h3>
+            {% if tickets %}
+            <table class="ticket-table">
+                <thead>
+                    <tr><th>Ticket</th><th>Title</th><th>Priority</th><th>Status</th><th>Created</th></tr>
+                </thead>
+                <tbody>
+                    {% for t in tickets %}
+                    <tr class="ticket-row" onclick="window.location='{{ url_for('engineer.ticket_detail', ticket_id=t.id) }}'">
+                        <td><span class="ticket-num">{{ t.ticket_number }}</span></td>
+                        <td>{{ t.title }}</td>
+                        <td><span class="priority-badge" style="background: {{ t.priority_color }}">{{ t.priority }}</span></td>
+                        <td><span class="status-badge status-{{ t.status }}">{{ t.status_label }}</span></td>
+                        <td class="text-muted">{{ t.created_at.strftime('%d %b %Y') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-muted">No tickets yet.</p>
+            {% endif %}
+        </div>
+
+        {% endif %}
+
+        <!-- Inventory tab -->
+        {% if active_tab == 'inventory' %}
+        <div class="card mb-4">
+            <div class="card-header-row">
+                <h3 class="card-title">Network Devices</h3>
+            </div>
+
+            {% if devices %}
+            <table class="ticket-table">
+                <thead>
+                    <tr><th>Type</th><th>Hostname</th><th>IP Address</th><th>OS</th><th>MAC</th><th>Notes</th><th></th></tr>
+                </thead>
+                <tbody>
+                    {% for d in devices %}
+                    <tr>
+                        <td><span class="device-type-badge">{{ d.device_type }}</span></td>
+                        <td><strong>{{ d.hostname }}</strong></td>
+                        <td class="font-mono">{{ d.ip_address or '—' }}</td>
+                        <td class="text-muted">{{ d.os or '—' }}</td>
+                        <td class="font-mono text-muted">{{ d.mac_address or '—' }}</td>
+                        <td class="text-muted">{{ d.notes or '' }}</td>
+                        <td>
+                            <button class="btn btn-outline btn-sm" onclick="openDeviceEdit({{ d.id }}, '{{ d.hostname }}', '{{ d.ip_address or '' }}', '{{ d.device_type }}', '{{ d.os or '' }}', '{{ d.mac_address or '' }}', {{ d.notes|tojson if d.notes else 'null' }})">Edit</button>
+                            <form method="POST" action="{{ url_for('engineer.delete_device', client_id=client.id, device_id=d.id) }}" style="display:inline" onsubmit="return confirm('Remove this device?')">
+                                <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <p>No devices yet. Add one below.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Add device form -->
+        <div class="card">
+            <h3 class="card-title">Add Device</h3>
+            <form method="POST" action="{{ url_for('engineer.new_device', client_id=client.id) }}">
+                <div class="form-row">
+                    <div class="form-group flex-2">
+                        <label class="form-label">Hostname *</label>
+                        <input type="text" name="hostname" class="form-control" placeholder="e.g. ROUTER-01" required>
+                    </div>
+                    <div class="form-group flex-1">
+                        <label class="form-label">IP Address</label>
+                        <input type="text" name="ip_address" class="form-control" placeholder="192.168.1.1">
+                    </div>
+                    <div class="form-group flex-1">
+                        <label class="form-label">Type</label>
+                        <select name="device_type" class="form-control">
+                            {% for dt in device_types %}
+                            <option value="{{ dt }}">{{ dt.title() }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group flex-2">
+                        <label class="form-label">OS / Firmware</label>
+                        <input type="text" name="os" class="form-control" placeholder="e.g. Windows Server 2022">
+                    </div>
+                    <div class="form-group flex-1">
+                        <label class="form-label">MAC Address</label>
+                        <input type="text" name="mac_address" class="form-control" placeholder="AA:BB:CC:DD:EE:FF">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes</label>
+                    <input type="text" name="notes" class="form-control" placeholder="Optional notes">
+                </div>
+                <button type="submit" class="btn btn-primary">Add Device</button>
+            </form>
+        </div>
+
+        <!-- Edit device modal -->
+        <div id="deviceEditModal" class="modal-overlay" style="display:none">
+            <div class="modal-box">
+                <h3 class="modal-title">Edit Device</h3>
+                <form method="POST" id="deviceEditForm">
+                    <div class="form-group">
+                        <label class="form-label">Hostname *</label>
+                        <input type="text" name="hostname" id="editHostname" class="form-control" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label class="form-label">IP Address</label>
+                            <input type="text" name="ip_address" id="editIp" class="form-control">
+                        </div>
+                        <div class="form-group flex-1">
+                            <label class="form-label">Type</label>
+                            <select name="device_type" id="editType" class="form-control">
+                                {% for dt in device_types %}
+                                <option value="{{ dt }}">{{ dt.title() }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group flex-2">
+                            <label class="form-label">OS / Firmware</label>
+                            <input type="text" name="os" id="editOs" class="form-control">
+                        </div>
+                        <div class="form-group flex-1">
+                            <label class="form-label">MAC Address</label>
+                            <input type="text" name="mac_address" id="editMac" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Notes</label>
+                        <input type="text" name="notes" id="editNotes" class="form-control">
+                    </div>
+                    <div style="display:flex;gap:8px">
+                        <button type="submit" class="btn btn-primary">Save</button>
+                        <button type="button" class="btn btn-outline" onclick="closeDeviceEdit()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% endif %}
+
+        <!-- Vault tab -->
+        {% if active_tab == 'vault' %}
+        <div class="vault-warning">
+            &#128274; Passwords are encrypted at rest. Only visible to engineers. Never share vault access with clients.
+        </div>
+
+        <div class="card mb-4">
+            <h3 class="card-title">Credentials</h3>
+            {% if credentials %}
+            <table class="ticket-table">
+                <thead>
+                    <tr><th>Label</th><th>Username</th><th>Password</th><th>URL</th><th>Notes</th><th></th></tr>
+                </thead>
+                <tbody>
+                    {% for cred in credentials %}
+                    <tr>
+                        <td><strong>{{ cred.label }}</strong></td>
+                        <td class="font-mono">{{ cred.username }}</td>
+                        <td>
+                            <div class="pw-cell">
+                                <span class="pw-hidden" id="pw-{{ cred.id }}">••••••••</span>
+                                <button class="btn-reveal" onclick="revealPassword({{ cred.id }}, {{ client.id }})" title="Reveal">&#128065;</button>
+                                <button class="btn-copy" id="copy-{{ cred.id }}" style="display:none" onclick="copyPassword({{ cred.id }})" title="Copy">&#128203;</button>
+                            </div>
+                        </td>
+                        <td>{% if cred.service_url %}<a href="{{ cred.service_url }}" target="_blank" class="text-muted">&#128279; link</a>{% else %}—{% endif %}</td>
+                        <td class="text-muted">{{ cred.notes or '' }}</td>
+                        <td>
+                            <button class="btn btn-outline btn-sm" onclick="openCredEdit({{ cred.id }}, '{{ cred.label }}', '{{ cred.username }}', '{{ cred.service_url or '' }}', {{ cred.notes|tojson if cred.notes else 'null' }})">Edit</button>
+                            <form method="POST" action="{{ url_for('engineer.delete_credential', client_id=client.id, cred_id=cred.id) }}" style="display:inline" onsubmit="return confirm('Delete this credential?')">
+                                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <p>No credentials stored yet.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Add credential form -->
+        <div class="card">
+            <h3 class="card-title">Add Credential</h3>
+            <form method="POST" action="{{ url_for('engineer.new_credential', client_id=client.id) }}">
+                <div class="form-row">
+                    <div class="form-group flex-1">
+                        <label class="form-label">Label *</label>
+                        <input type="text" name="label" class="form-control" placeholder="e.g. Domain Admin" required>
+                    </div>
+                    <div class="form-group flex-1">
+                        <label class="form-label">Username *</label>
+                        <input type="text" name="username" class="form-control" placeholder="administrator" required autocomplete="off">
+                    </div>
+                    <div class="form-group flex-1">
+                        <label class="form-label">Password *</label>
+                        <input type="password" name="password" class="form-control" required autocomplete="new-password">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group flex-2">
+                        <label class="form-label">URL / Service</label>
+                        <input type="text" name="service_url" class="form-control" placeholder="https://...">
+                    </div>
+                    <div class="form-group flex-2">
+                        <label class="form-label">Notes</label>
+                        <input type="text" name="notes" class="form-control" placeholder="Optional notes">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Save Credential</button>
+            </form>
+        </div>
+
+        <!-- Edit credential modal -->
+        <div id="credEditModal" class="modal-overlay" style="display:none">
+            <div class="modal-box">
+                <h3 class="modal-title">Edit Credential</h3>
+                <form method="POST" id="credEditForm">
+                    <div class="form-group">
+                        <label class="form-label">Label *</label>
+                        <input type="text" name="label" id="editCredLabel" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Username *</label>
+                        <input type="text" name="username" id="editCredUsername" class="form-control" required autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">New Password <span class="text-muted">(leave blank to keep current)</span></label>
+                        <input type="password" name="password" class="form-control" autocomplete="new-password">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">URL / Service</label>
+                        <input type="text" name="service_url" id="editCredUrl" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Notes</label>
+                        <input type="text" name="notes" id="editCredNotes" class="form-control">
+                    </div>
+                    <div style="display:flex;gap:8px">
+                        <button type="submit" class="btn btn-primary">Save</button>
+                        <button type="button" class="btn btn-outline" onclick="closeCredEdit()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% endif %}
+
+    </main>
+</div>
+
+<script>
+// ── Device edit modal ──────────────────────────────────────────────────────
+function openDeviceEdit(id, hostname, ip, type, os, mac, notes) {
+    document.getElementById('editHostname').value = hostname;
+    document.getElementById('editIp').value = ip;
+    document.getElementById('editType').value = type;
+    document.getElementById('editOs').value = os;
+    document.getElementById('editMac').value = mac;
+    document.getElementById('editNotes').value = notes || '';
+    document.getElementById('deviceEditForm').action =
+        '/engineer/clients/{{ client.id }}/devices/' + id + '/edit';
+    document.getElementById('deviceEditModal').style.display = 'flex';
+}
+function closeDeviceEdit() {
+    document.getElementById('deviceEditModal').style.display = 'none';
+}
+
+// ── Credential edit modal ──────────────────────────────────────────────────
+function openCredEdit(id, label, username, url, notes) {
+    document.getElementById('editCredLabel').value = label;
+    document.getElementById('editCredUsername').value = username;
+    document.getElementById('editCredUrl').value = url || '';
+    document.getElementById('editCredNotes').value = notes || '';
+    document.getElementById('credEditForm').action =
+        '/engineer/clients/{{ client.id }}/vault/' + id + '/edit';
+    document.getElementById('credEditModal').style.display = 'flex';
+}
+function closeCredEdit() {
+    document.getElementById('credEditModal').style.display = 'none';
+}
+
+// ── Password reveal ────────────────────────────────────────────────────────
+const revealed = {};
+function revealPassword(credId, clientId) {
+    if (revealed[credId]) {
+        document.getElementById('pw-' + credId).textContent = '••••••••';
+        delete revealed[credId];
+        document.getElementById('copy-' + credId).style.display = 'none';
+        return;
+    }
+    fetch('/engineer/clients/' + clientId + '/vault/' + credId + '/reveal', {method: 'POST'})
+        .then(r => r.json())
+        .then(data => {
+            if (data.password) {
+                revealed[credId] = data.password;
+                document.getElementById('pw-' + credId).textContent = data.password;
+                document.getElementById('copy-' + credId).style.display = 'inline-block';
+            }
+        });
+}
+function copyPassword(credId) {
+    if (revealed[credId]) {
+        navigator.clipboard.writeText(revealed[credId]);
+        const btn = document.getElementById('copy-' + credId);
+        btn.textContent = '✓';
+        setTimeout(() => btn.textContent = '📋', 1500);
+    }
+}
+
+// Close modals on overlay click
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('modal-overlay')) {
+        e.target.style.display = 'none';
+    }
+});
+</script>
+{% endblock %}

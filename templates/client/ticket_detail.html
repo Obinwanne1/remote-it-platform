@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}{{ ticket.ticket_number }}{% endblock %}
+
+{% block content %}
+<div class="portal-layout">
+    <div class="page-header">
+        <div>
+            <a href="{{ url_for('client.portal') }}" class="btn btn-outline btn-sm mb-2">&#8592; Back to Portal</a>
+            <h2>{{ ticket.ticket_number }}: {{ ticket.title }}</h2>
+            <div class="ticket-meta">
+                <span class="priority-badge" style="background: {{ ticket.priority_color }}">{{ ticket.priority }}</span>
+                <span class="status-badge status-{{ ticket.status }}">{{ ticket.status_label }}</span>
+                <span class="text-muted">{{ ticket.category }}</span>
+                <span class="text-muted">{{ ticket.created_at.strftime('%d %b %Y %H:%M') }}</span>
+            </div>
+        </div>
+    </div>
+
+    {% if ticket.status == 'pending_client' %}
+    <div class="alert-banner">
+        Your engineer is waiting for more information. Please reply below.
+    </div>
+    {% endif %}
+
+    <div class="card mb-4">
+        <h3 class="card-title">Description</h3>
+        <div class="ticket-description">{{ ticket.description }}</div>
+    </div>
+
+    <div class="card" id="comments">
+        <h3 class="card-title">Conversation</h3>
+        {% for comment in comments %}
+        <div class="comment {% if comment.author.role == 'engineer' %}comment-engineer{% endif %}">
+            <div class="comment-header">
+                <strong>
+                    {% if comment.author.role == 'engineer' %}
+                    IT Support
+                    {% else %}
+                    {{ comment.author.name }}
+                    {% endif %}
+                </strong>
+                <span class="text-muted">{{ comment.created_at.strftime('%d %b %H:%M') }}</span>
+            </div>
+            <div class="comment-body">{{ comment.body }}</div>
+        </div>
+        {% else %}
+        <p class="text-muted">No replies yet. We'll respond shortly.</p>
+        {% endfor %}
+
+        {% if ticket.status not in ('resolved', 'closed') %}
+        <form method="POST" action="{{ url_for('client.add_comment', ticket_id=ticket.id) }}" class="comment-form mt-4">
+            <textarea name="body" rows="4" placeholder="Add information or reply to the engineer..." required></textarea>
+            <div class="comment-form-footer">
+                <button type="submit" class="btn btn-primary">Send Reply</button>
+            </div>
+        </form>
+        {% else %}
+        <div class="resolved-notice">This ticket is {{ ticket.status }}.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

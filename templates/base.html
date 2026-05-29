@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}RemoteDesk{% endblock %} — RemoteDesk IT Support</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+
+{% block nav %}
+<nav class="navbar">
+    <div class="navbar-brand">
+        <span class="brand-icon">&#9654;</span> RemoteDesk
+    </div>
+    <div class="navbar-right">
+        {% if session.get('user_id') %}
+        <span class="nav-user">{{ session.get('name', '') }}</span>
+        <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-white btn-sm">Logout</a>
+        {% endif %}
+    </div>
+</nav>
+{% endblock %}
+
+<div class="page-wrapper">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-container">
+            {% for category, message in messages %}
+            <div class="flash flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+</div>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

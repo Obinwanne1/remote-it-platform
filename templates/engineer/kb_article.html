@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}{{ article.title }}{% endblock %}
+
+{% block content %}
+<div class="layout">
+    <aside class="sidebar">
+        <nav class="sidebar-nav">
+            <a href="{{ url_for('kb.kb_list') }}" class="nav-item">&#8592; Knowledge Base</a>
+            <a href="{{ url_for('kb.kb_edit', article_id=article.id) }}" class="nav-item">&#9998; Edit Article</a>
+            <a href="{{ url_for('kb.kb_new') }}" class="nav-item">&#43; New Article</a>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <div class="article-header">
+            <div>
+                <div class="article-meta">
+                    <span class="kb-category">{{ article.category }}</span>
+                    {% if not article.is_global %}
+                    <span class="kb-private-badge">Private: {{ article.client.name }}</span>
+                    {% endif %}
+                    {% if not article.is_published %}
+                    <span class="badge badge-danger">Unpublished</span>
+                    {% endif %}
+                </div>
+                <h1 class="article-title">{{ article.title }}</h1>
+                <div class="article-byline">
+                    By {{ article.author.name }} &middot;
+                    Created {{ article.created_at.strftime('%d %b %Y') }} &middot;
+                    Updated {{ article.updated_at.strftime('%d %b %Y') }}
+                </div>
+            </div>
+            <div class="header-actions">
+                <a href="{{ url_for('kb.kb_edit', article_id=article.id) }}" class="btn btn-outline">Edit</a>
+                <form method="POST" action="{{ url_for('kb.kb_delete', article_id=article.id) }}"
+                      onsubmit="return confirm('Unpublish this article?')">
+                    <button type="submit" class="btn btn-outline btn-danger-outline">Unpublish</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="article-body markdown-body">
+                {{ article.body | markdown }}
+            </div>
+        </div>
+
+        <div class="article-share mt-4">
+            <p class="text-muted">Share this article link in a ticket:</p>
+            <code class="share-link">{{ request.host_url }}portal/kb/{{ article.id }}</code>
+        </div>
+    </main>
+</div>
+{% endblock %}

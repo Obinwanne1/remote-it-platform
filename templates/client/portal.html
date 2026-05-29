@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block title %}Support Portal{% endblock %}
+
+{% block content %}
+<div class="portal-layout">
+    <div class="portal-header">
+        <div>
+            <h2>{{ client.name }} — Support Portal</h2>
+            <p class="text-muted">Logged in as {{ session.get('name') }}</p>
+        </div>
+        <div style="display:flex;gap:8px">
+            <a href="{{ url_for('kb.client_kb') }}" class="btn btn-outline">&#128218; Knowledge Base</a>
+            <a href="{{ url_for('client.new_ticket') }}" class="btn btn-primary btn-lg">+ Submit Ticket</a>
+        </div>
+    </div>
+
+    <div class="stats-bar">
+        <div class="stat-card">
+            <div class="stat-number">{{ open_count }}</div>
+            <div class="stat-label">Open</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ resolved_count }}</div>
+            <div class="stat-label">Resolved</div>
+        </div>
+    </div>
+
+    <!-- Filter tabs -->
+    <div class="tab-bar">
+        <a href="{{ url_for('client.portal') }}" class="tab {% if not status_filter %}tab-active{% endif %}">All</a>
+        <a href="{{ url_for('client.portal', status='new') }}" class="tab {% if status_filter == 'new' %}tab-active{% endif %}">New</a>
+        <a href="{{ url_for('client.portal', status='in_progress') }}" class="tab {% if status_filter == 'in_progress' %}tab-active{% endif %}">In Progress</a>
+        <a href="{{ url_for('client.portal', status='pending_client') }}" class="tab {% if status_filter == 'pending_client' %}tab-active{% endif %}">Needs Your Input</a>
+        <a href="{{ url_for('client.portal', status='resolved') }}" class="tab {% if status_filter == 'resolved' %}tab-active{% endif %}">Resolved</a>
+    </div>
+
+    <div class="card">
+        {% if tickets %}
+        <table class="ticket-table">
+            <thead>
+                <tr>
+                    <th>Ticket</th>
+                    <th>Title</th>
+                    <th>Priority</th>
+                    <th>Category</th>
+                    <th>Status</th>
+                    <th>Updated</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in tickets %}
+                <tr class="ticket-row {% if t.status == 'pending_client' %}row-attention{% endif %}"
+                    onclick="window.location='{{ url_for('client.ticket_detail', ticket_id=t.id) }}'">
+                    <td><span class="ticket-num">{{ t.ticket_number }}</span></td>
+                    <td class="ticket-title">
+                        {{ t.title }}
+                        {% if t.status == 'pending_client' %}
+                        <span class="attention-dot" title="Your input needed"></span>
+                        {% endif %}
+                    </td>
+                    <td><span class="priority-badge" style="background: {{ t.priority_color }}">{{ t.priority }}</span></td>
+                    <td>{{ t.category }}</td>
+                    <td><span class="status-badge status-{{ t.status }}">{{ t.status_label }}</span></td>
+                    <td class="text-muted">{{ t.updated_at.strftime('%d %b %H:%M') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <p>No tickets found.</p>
+            <a href="{{ url_for('client.new_ticket') }}" class="btn btn-primary">Submit your first ticket</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

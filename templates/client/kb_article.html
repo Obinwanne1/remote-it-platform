@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}{{ article.title }}{% endblock %}
+
+{% block content %}
+<div class="portal-layout">
+    <div class="page-header">
+        <a href="{{ url_for('kb.client_kb') }}" class="btn btn-outline">&#8592; Knowledge Base</a>
+    </div>
+
+    <div class="article-header mb-4">
+        <div class="article-meta">
+            <span class="kb-category">{{ article.category }}</span>
+        </div>
+        <h1 class="article-title">{{ article.title }}</h1>
+        <div class="article-byline">Updated {{ article.updated_at.strftime('%d %b %Y') }}</div>
+    </div>
+
+    <div class="card">
+        <div class="article-body markdown-body">
+            {{ article.body | markdown }}
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <a href="{{ url_for('client.new_ticket') }}" class="btn btn-outline">Still need help? Submit a ticket</a>
+    </div>
+</div>
+{% endblock %}

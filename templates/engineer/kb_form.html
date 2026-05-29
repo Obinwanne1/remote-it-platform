@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% block title %}{% if article %}Edit Article{% else %}New Article{% endif %}{% endblock %}
+
+{% block extra_head %}
+<style>
+.editor-layout { display: flex; gap: 16px; }
+.editor-pane, .preview-pane { flex: 1; }
+.preview-pane .card { min-height: 300px; }
+#bodyPreview { color: #4b5563; line-height: 1.7; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="layout">
+    <aside class="sidebar">
+        <nav class="sidebar-nav">
+            <a href="{{ url_for('kb.kb_list') }}" class="nav-item">&#8592; Knowledge Base</a>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <div class="page-header">
+            <h2>{% if article %}Edit: {{ article.title }}{% else %}New Article{% endif %}</h2>
+        </div>
+
+        <form method="POST" id="articleForm">
+            <div class="card form-card mb-4" style="max-width: 100%">
+                <div class="form-row">
+                    <div class="form-group" style="flex:3">
+                        <label>Title *</label>
+                        <input type="text" name="title" required
+                               value="{{ article.title if article else '' }}"
+                               placeholder="How to reset a Windows domain password">
+                    </div>
+                    <div class="form-group">
+                        <label>Category</label>
+                        <select name="category">
+                            {% for cat in categories %}
+                            <option value="{{ cat }}"
+                                {% if article and article.category == cat %}selected{% endif %}>{{ cat }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Visibility</label>
+                        <select name="client_id">
+                            <option value="">Global (all clients)</option>
+                            {% for c in clients %}
+                            <option value="{{ c.id }}"
+                                {% if article and article.client_id == c.id %}selected{% endif %}>{{ c.name }} only</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <label class="checkbox-label mb-4">
+                    <input type="checkbox" name="is_published"
+                           {% if not article or article.is_published %}checked{% endif %}>
+                    Published (visible to clients)
+                </label>
+            </div>
+
+            <div class="editor-layout">
+                <div class="editor-pane">
+                    <div class="card">
+                        <h3 class="card-title">Markdown Editor</h3>
+                        <textarea name="body" id="bodyEditor" rows="20"
+                                  style="width:100%; font-family:monospace; font-size:13px; border:1px solid #e5e7eb; border-radius:6px; padding:10px; resize:vertical"
+                                  placeholder="Write in Markdown...&#10;&#10;## Heading&#10;**bold**, *italic*&#10;&#10;```&#10;code block&#10;```"
+                                  oninput="updatePreview(this.value)">{{ article.body if article else '' }}</textarea>
+                    </div>
+                </div>
+                <div class="preview-pane">
+                    <div class="card">
+                        <h3 class="card-title">Preview</h3>
+                        <div id="bodyPreview" class="markdown-body article-body"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions mt-4">
+                <a href="{{ url_for('kb.kb_list') }}" class="btn btn-outline">Cancel</a>
+                <button type="submit" class="btn btn-primary">
+                    {% if article %}Save Changes{% else %}Publish Article{% endif %}
+                </button>
+            </div>
+        </form>
+    </main>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Live preview using a simple markdown-to-HTML conversion
+function updatePreview(text) {
+    // Very basic preview — server renders final version
+    const el = document.getElementById('bodyPreview');
+    let html = text
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\n/g, '<br>');
+    el.innerHTML = html;
+}
+// Init preview on load
+updatePreview(document.getElementById('bodyEditor').value);
+</script>
+{% endblock %}

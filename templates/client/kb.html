@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}Knowledge Base{% endblock %}
+
+{% block content %}
+<div class="portal-layout">
+    <div class="portal-header">
+        <div>
+            <h2>Knowledge Base</h2>
+            <p class="text-muted">Self-service guides and how-to articles</p>
+        </div>
+        <a href="{{ url_for('client.portal') }}" class="btn btn-outline">&#8592; Back to Portal</a>
+    </div>
+
+    <!-- Category filter tabs -->
+    <div class="tab-bar" style="flex-wrap:wrap">
+        <a href="{{ url_for('kb.client_kb') }}" class="tab {% if not category_filter %}tab-active{% endif %}">All</a>
+        {% for cat in categories %}
+        <a href="{{ url_for('kb.client_kb', category=cat) }}" class="tab {% if category_filter == cat %}tab-active{% endif %}">{{ cat }}</a>
+        {% endfor %}
+    </div>
+
+    {% if articles %}
+    <div class="kb-grid">
+        {% for article in articles %}
+        <a href="{{ url_for('kb.client_kb_article', article_id=article.id) }}" class="kb-card">
+            <div class="kb-card-header">
+                <span class="kb-category">{{ article.category }}</span>
+                {% if not article.is_global %}
+                <span class="kb-private-badge">Your company</span>
+                {% endif %}
+            </div>
+            <h3 class="kb-card-title">{{ article.title }}</h3>
+            <p class="kb-card-preview">{{ article.body[:120] | replace('\n', ' ') }}{% if article.body|length > 120 %}…{% endif %}</p>
+            <div class="kb-card-footer">
+                <span class="text-muted">{{ article.updated_at.strftime('%d %b %Y') }}</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No articles available yet.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

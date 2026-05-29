@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}Clients{% endblock %}
+
+{% block content %}
+<div class="layout">
+    <aside class="sidebar">
+        <nav class="sidebar-nav">
+            <a href="{{ url_for('engineer.dashboard') }}" class="nav-item">&#8592; Dashboard</a>
+            <a href="{{ url_for('engineer.clients') }}" class="nav-item active">&#128188; Clients</a>
+            <a href="{{ url_for('engineer.new_client') }}" class="nav-item">&#43; Add Client</a>
+        </nav>
+    </aside>
+    <main class="main-content">
+        <div class="page-header">
+            <h2>Clients</h2>
+            <a href="{{ url_for('engineer.new_client') }}" class="btn btn-primary">+ Add Client</a>
+        </div>
+        <div class="card">
+            {% if clients %}
+            <table class="ticket-table">
+                <thead>
+                    <tr>
+                        <th>Company</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>AnyDesk ID</th>
+                        <th>Open Tickets</th>
+                        <th>SLA Breaches</th>
+                        <th>Since</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in clients %}
+                    <tr class="ticket-row" onclick="window.location='{{ url_for('engineer.client_detail', client_id=c.id) }}'">
+                        <td><strong>{{ c.name }}</strong></td>
+                        <td>{{ c.email }}</td>
+                        <td>{{ c.phone or '—' }}</td>
+                        <td>{{ c.anydesk_id or '—' }}</td>
+                        <td>
+                            {% if c.open_ticket_count > 0 %}
+                            <span class="badge">{{ c.open_ticket_count }}</span>
+                            {% else %}
+                            <span class="text-muted">0</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if c.sla_breach_count > 0 %}
+                            <span class="badge badge-danger">{{ c.sla_breach_count }}</span>
+                            {% else %}
+                            <span class="text-muted">0</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted">{{ c.created_at.strftime('%d %b %Y') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <p>No clients yet. <a href="{{ url_for('engineer.new_client') }}">Add your first client</a>.</p>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+</div>
+{% endblock %}

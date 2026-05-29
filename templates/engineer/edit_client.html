@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}Edit {{ client.name }}{% endblock %}
+
+{% block content %}
+<div class="layout">
+    <aside class="sidebar">
+        <nav class="sidebar-nav">
+            <a href="{{ url_for('engineer.client_detail', client_id=client.id) }}" class="nav-item">&#8592; Back to Client</a>
+        </nav>
+    </aside>
+    <main class="main-content">
+        <div class="page-header"><h2>Edit: {{ client.name }}</h2></div>
+        <div class="card form-card">
+            <form method="POST">
+                <div class="form-group">
+                    <label>Company Name *</label>
+                    <input type="text" name="name" required value="{{ client.name }}">
+                </div>
+                <div class="form-group">
+                    <label>Email *</label>
+                    <input type="email" name="email" required value="{{ client.email }}">
+                </div>
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input type="text" name="phone" value="{{ client.phone or '' }}">
+                </div>
+                <div class="form-group">
+                    <label>AnyDesk ID</label>
+                    <input type="text" name="anydesk_id" value="{{ client.anydesk_id or '' }}" placeholder="123456789">
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea name="notes" rows="4">{{ client.notes or '' }}</textarea>
+                </div>
+                <div class="form-actions">
+                    <a href="{{ url_for('engineer.client_detail', client_id=client.id) }}" class="btn btn-outline">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </main>
+</div>
+{% endblock %}
