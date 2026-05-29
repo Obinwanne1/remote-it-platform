@@ -17,7 +17,11 @@ def _get_vault_key():
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-change-in-production')
     VAULT_KEY = _get_vault_key()
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'sqlite:///remote_it.db')
+    _db_url = os.environ.get('DATABASE_URL', 'sqlite:///remote_it.db')
+    # Railway/Heroku legacy URIs use postgres:// — SQLAlchemy 2.x requires postgresql://
+    if _db_url.startswith('postgres://'):
+        _db_url = _db_url.replace('postgres://', 'postgresql://', 1)
+    SQLALCHEMY_DATABASE_URI = _db_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     MAIL_SERVER = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
